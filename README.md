@@ -9,7 +9,7 @@ INSTALL
 The plugin is 2.x friendly:
 
 ```sh
-uwsgi --build-plugin https://github.com/unbit/uwsgi-influxdb
+uwsgi --build-plugin https://github.com/bensentropy/uwsgi-influxdb
 ```
 
 USAGE
