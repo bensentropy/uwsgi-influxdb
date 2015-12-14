@@ -15,17 +15,17 @@ extern struct uwsgi_server uwsgi;
 
 /*
 JSON body:
-
 [{"name":"NAME","columns":["value"],"points":[[VALUE]]}]\0
+
+NAME,value
+cpu_load_short,host=server01,region=us-westd value=0.64 1434055562000000000
 */
 static void influxdb_send_metric(struct uwsgi_buffer *ub, char *url, char *metric, size_t metric_len, int64_t value) {
 	// reset the buffer
-	ub->pos = 0;
-	if (uwsgi_buffer_append(ub, "[{\"name\":\"", 10)) goto error;	
-	if (uwsgi_buffer_append_json(ub, metric, metric_len)) goto error;
-	if (uwsgi_buffer_append(ub, "\",\"columns\":[\"value\"],\"points\":[[", 33)) goto error;
+	ub->pos = 0;	
+	if (uwsgi_buffer_append(ub, metric, metric_len)) goto error;
+	if (uwsgi_buffer_append(ub, ",value=", 7)) goto error;
         if (uwsgi_buffer_num64(ub, value)) goto error;
-	if (uwsgi_buffer_append(ub, "]]}]\0", 5)) goto error;
 
 	// now send the JSON to the influxdb server via curl
 	CURL *curl = curl_easy_init();
@@ -33,18 +33,15 @@ static void influxdb_send_metric(struct uwsgi_buffer *ub, char *url, char *metri
 		uwsgi_log_verbose("[influxdb] unable to initialize curl for metric %.*s\n", metric_len, metric);
 		return;
 	}
-	struct curl_slist *headers = NULL;
-	headers = curl_slist_append(headers, "Content-Type: application/json");
+
 	curl_easy_setopt(curl, CURLOPT_TIMEOUT, uwsgi.socket_timeout);
 	curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, uwsgi.socket_timeout);
-	curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers); 
 	curl_easy_setopt(curl, CURLOPT_URL, url);
 	curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "POST");
 	curl_easy_setopt(curl, CURLOPT_POSTFIELDS, ub->buf);
 	curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
 	curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
 	CURLcode res = curl_easy_perform(curl);	
-	curl_slist_free_all(headers);
 	if (res != CURLE_OK) {
 		uwsgi_log_verbose("[influxdb] error sending metric %.*s: %s\n", metric_len, metric, curl_easy_strerror(res));	
 		curl_easy_cleanup(curl);
