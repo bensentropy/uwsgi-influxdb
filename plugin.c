@@ -14,10 +14,7 @@ it exports values exposed by the metric subsystem
 extern struct uwsgi_server uwsgi;
 
 /*
-JSON body:
-[{"name":"NAME","columns":["value"],"points":[[VALUE]]}]\0
-
-NAME,value
+Line body:
 cpu_load_short,host=server01,region=us-westd value=0.64 1434055562000000000
 */
 static void influxdb_send_metric(struct uwsgi_buffer *ub, char *url, char *metric, size_t metric_len, int64_t value) {
@@ -25,7 +22,8 @@ static void influxdb_send_metric(struct uwsgi_buffer *ub, char *url, char *metri
 	ub->pos = 0;	
 	if (uwsgi_buffer_append(ub, metric, metric_len)) goto error;
 	if (uwsgi_buffer_append(ub, ",value=", 7)) goto error;
-        if (uwsgi_buffer_num64(ub, value)) goto error;
+    if (uwsgi_buffer_num64(ub, value)) goto error;
+    if (uwsgi_buffer_append(ub, "\r\n", 2)) goto error;
 
 	// now send the JSON to the influxdb server via curl
 	CURL *curl = curl_easy_init();
